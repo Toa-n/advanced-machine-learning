@@ -2,6 +2,7 @@
 title: Linear Regression
 markmap:
   colorFreezeLevel: 4
+  initialExpandLevel: 2
 ---
 # Regression Techniques
 
