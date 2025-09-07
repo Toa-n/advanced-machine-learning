@@ -1,5 +1,5 @@
 ---
-title: Generative Models 1
+title: Generative Models
 markmap:
   colorFreezeLevel: 4
   initialExpandLevel: 2
@@ -139,7 +139,53 @@ markmap:
 - **Solution**: Approximate it with a neural network $p_\theta(x_{t-1}|x_t)$
 - **Model**:
 	- **Formula**: $p_\theta(x_{t-1}|x_t) = N(x_{t-1}; \mu_\theta(x_t, t), \sigma_t^2 I)$
-	- **Architecture**: A network (typically a U-Net) is trained to predict the noise $\epsilon$ that was added at step $t$. From this prediction, the mean $\mu_\theta$ can be calculated.
-- **Generation**:
-	1. Start with a sample from a standard Gaussian distribution, $x_T \sim N(0, I)$
-	2. Iteratively use the trained network to denoise for $T$ steps, from $t=T$ down to $t=1$, to get a clean data sample $x_0$
+	- **Architecture**: A network (typically a U-Net) is trained to predict the noise $\epsilon$ that was added at step $t$
+## Training the Denoising Model
+- ### Variational Upper Bound
+	- **Goal**: Optimize marginal likelihood of training data (intractable)
+	- **Solution**: Optimize a variational upper bound $\mathcal{L}$ on the negative log-likelihood
+	- **Formula**: $\mathcal{L} = E_q [ D_{KL}(q(x_T|x_0)||p(x_T)) + \sum_{t>1} D_{KL}(q(x_{t-1}|x_t, x_0)||p_\theta(x_{t-1}|x_t)) - \log p_\theta(x_0|x_1) ]$
+- ### Noise Prediction Parameterization
+	- **Idea**: Simplify the loss by parameterizing the model $\epsilon_\theta(x_t, t)$ to predict the noise $\epsilon$ added at step t
+	- **Simplified Objective**: The training loss simplifies to minimizing the difference between the actual and predicted noise
+		- **Formula**: $L_{simple} = E_{x_0, \epsilon, t} [||\epsilon - \epsilon_\theta(\sqrt{\bar{\alpha}_t}x_0 + \sqrt{1-\bar{\alpha}_t}\epsilon, t)||^2]$
+- ### Summary Algorithms
+	- #### Training
+		1. Get a data sample $x_0$
+		2. Sample a random timestep $t$ and random noise $\epsilon \sim N(0, I)$
+		3. Take a gradient descent step on: $||\epsilon - \epsilon_\theta(\sqrt{\bar{\alpha}_t}x_0 + \sqrt{1-\bar{\alpha}_t}\epsilon, t)||^2$
+	- #### Sampling
+		1. Start with random noise $x_T \sim N(0, I)$
+		2. For $t=T$ down to 1:
+			- $x_{t-1} = \frac{1}{\sqrt{\alpha_t}}(x_t - \frac{1-\alpha_t}{\sqrt{1-\bar{\alpha}_t}}\epsilon_\theta(x_t, t)) + \sigma_t z$
+## Score-Based Generative Modeling (SDE View)
+- **Concept**: Re-interprets discrete diffusion as a continuous-time Stochastic Differential Equation (SDE)
+- ### Forward Process SDE
+	- **Formula**: $dx_t = -\frac{1}{2}\beta_t x_t dt + \sqrt{\beta(t)} dw_t$
+- ### Reverse Process SDE
+	- **Concept**: A reverse-time SDE exists that transforms noise back into data
+	- **Formula**: $dx_t = [-\frac{1}{2}\beta(t)x_t - \beta(t)\nabla_{x_t} \log q_t(x_t)] dt + \sqrt{\beta(t)} d\bar{w}_t$
+	- **Key Component**: Requires the intractable **score function** $\nabla_{x_t} \log q_t(x_t)$
+- ### Denoising Score Matching
+	- **Solution**: Learn the tractable score of the *conditional* distribution, $\nabla_{x_t} \log q_t(x_t|x_0)$
+	- **Training Objective**: Train a network $s_\theta(x_t, t)$ to predict the conditional score
+	- **Connection to Noise Prediction**: Predicting the conditional score is equivalent to predicting the noise $\epsilon$
+		- **Formula**: $\nabla_{x_t} \log q_t(x_t|x_0) = -\frac{\epsilon}{\sigma_t}$
+## Practical Aspects & Applications
+- ### Latent-Space Diffusion
+	- **Idea**: Apply diffusion in the compact latent space of a pre-trained VAE for efficiency
+	- **Advantages**: Faster training and synthesis, more expressive
+- ### Conditional Generation
+	- **Goal**: Steer generation based on a condition $c$ (e.g., text, class label)
+	- **Method**: Feed the condition $c$ into the denoising network $\epsilon_\theta(x_t, t, c)$
+- ### Classifier Guidance
+	- **Idea**: Use gradients from a pre-trained classifier $p_\phi(c|x_t)$ to guide sampling
+	- **Modified Score**: The sampling mean is shifted by the classifier gradient
+		- **Formula**: $\mu' = \mu + s\Sigma\nabla_{x_t} \log p_\phi(c|x_t)$
+- ### Classifier-Free Guidance
+	- **Idea**: Avoids a separate classifier by jointly training a conditional model that can also be used unconditionally
+	- **Method**: During training, randomly drop the condition $c$ with some probability
+	- **Modified Score**: Extrapolate from the conditional and unconditional noise predictions
+		- **Formula**: $\hat{\epsilon}_\theta(x_t, c) = (1+\omega)\epsilon_\theta(x_t,c) - \omega\epsilon_\theta(x_t)$
+- ### Cascaded Generation
+	- **Idea**: Chain multiple diffusion models to generate high-resolution images by sequential upsampling
