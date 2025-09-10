@@ -10,4 +10,4 @@ The summary divides the lecture into the following topics:
 
 The Markdown files are formatted to work with [Markmap](https://markmap.js.org/), a mind map visualizer, which is available as a VSCode extension.
 
-Exported HTML files of the mind maps are also available.
+Exported HTML files of the mind maps are also available and can also be viewed [here](https://toa-n.github.io/advanced-machine-learning/).
