@@ -120,7 +120,8 @@ markmap:
 - **Algorithm**:
     1.  **Marry the parents**: For each node, add an undirected edge between all pairs of its parents.
     2.  **Drop the arrows**: Convert all original directed edges to undirected edges.
-    3.  The resulting graph is the **moral graph**.
+    3.  **Find max. cliques for each node**
+    4.  **Assign probabilities to clique potentials**
 - **Note**: This process can lose conditional independence information that the original directed graph contained (e.g., the independence in a head-to-head structure is lost).
 
 # Inference in Graphical Models
